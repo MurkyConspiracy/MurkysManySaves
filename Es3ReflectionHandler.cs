@@ -4,13 +4,10 @@ using System.Reflection;
 
 namespace MurkysManySaves
 {
-    /// <summary>
-    /// Runtime lookup and invocation of ES3 (and other) types without a compile-time
-    /// dependency, since ES3 isn't referenced directly by this assembly.
-    /// </summary>
-    internal static class ES3_Reflection_Handler
+    /// <summary>Finds and invokes ES3's types at runtime, since this assembly has no compile-time reference to it.</summary>
+    internal static class Es3ReflectionHandler
     {
-        /// <summary>Find a type by name, checking Assembly-CSharp first, then every loaded assembly.</summary>
+        /// <summary>Finds a type by name, checking Assembly-CSharp first, then every loaded assembly.</summary>
         public static Type FindType(string typeName)
         {
             Type type = Type.GetType($"{typeName}, Assembly-CSharp");
@@ -30,9 +27,8 @@ namespace MurkysManySaves
         public static Type FindEs3Type() => FindType("ES3");
 
         /// <summary>
-        /// Find a public static method whose leading parameters match paramTypes, tolerating
-        /// trailing optional parameters (ES3 commonly declares e.g. FileExists(string, ES3Settings = null),
-        /// which Type.GetMethod(name, Type[]) can't match since it requires an exact parameter count).
+        /// Finds a public static method matching paramTypes, tolerating trailing optional
+        /// parameters (ES3 commonly has these, which Type.GetMethod can't match by itself).
         /// </summary>
         public static MethodInfo FindMethod(Type type, string methodName, params Type[] paramTypes)
         {
@@ -78,7 +74,7 @@ namespace MurkysManySaves
             return null;
         }
 
-        /// <summary>Invoke a method found via FindMethod, filling Type.Missing for any omitted trailing optional params.</summary>
+        /// <summary>Invokes a method found via FindMethod, filling in Type.Missing for any omitted optional params.</summary>
         public static object Invoke(MethodInfo method, object instance, params object[] args)
         {
             var parameters = method.GetParameters();

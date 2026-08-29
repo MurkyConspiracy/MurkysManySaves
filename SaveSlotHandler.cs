@@ -7,27 +7,26 @@ using UnityEngine;
 namespace MurkysManySaves
 {
     /// <summary>
-    /// Detects the active save slot and hooks PlayerStore.SaveGame/LoadGame, raising events
-    /// instead of requiring callers to poll or track pending state. The slot always comes from
-    /// PlayerStore.saveSlotId - the same field the game itself uses to build "save_{id}.es3".
+    /// Detects the active save slot and hooks PlayerStore's save/load calls, raising events
+    /// instead of requiring callers to poll or track pending state themselves.
     /// </summary>
-    public static class Save_Slot_Handler
+    public static class SaveSlotHandler
     {
         private static bool isPatched = false;
 
-        /// <summary>Raised after PlayerStore.SaveGame runs, with the save file name and slot number.</summary>
+        /// <summary>Raised after a save completes, with the save file name and slot number.</summary>
         public static event Action<string, int> SaveCompleted;
 
-        /// <summary>Raised after PlayerStore.LoadGame runs, with the save file name and slot number.</summary>
+        /// <summary>Raised after a load completes, with the save file name and slot number.</summary>
         public static event Action<string, int> LoadCompleted;
 
-        /// <summary>Locates PlayerStore and patches its Save/Load methods. Safe to call more than once.</summary>
+        /// <summary>Patches PlayerStore's save/load methods. Safe to call more than once.</summary>
         public static void Initialize(Harmony harmony)
         {
             if (isPatched)
                 return;
 
-            Type playerStoreType = ES3_Reflection_Handler.FindType("PlayerStore");
+            Type playerStoreType = Es3ReflectionHandler.FindType("PlayerStore");
             if (playerStoreType == null)
             {
                 Debug.LogWarning("[MurkysManySaves] Could not find PlayerStore - save hooks will not work");
@@ -53,7 +52,7 @@ namespace MurkysManySaves
                     return;
                 }
 
-                MethodInfo postfix = typeof(Save_Slot_Handler).GetMethod(postfixName, BindingFlags.NonPublic | BindingFlags.Static);
+                MethodInfo postfix = typeof(SaveSlotHandler).GetMethod(postfixName, BindingFlags.NonPublic | BindingFlags.Static);
                 harmony.Patch(target, postfix: new HarmonyMethod(postfix));
             }
             catch (Exception ex)
@@ -76,13 +75,10 @@ namespace MurkysManySaves
                 LoadCompleted?.Invoke($"save_{slot.Value}.es3", slot.Value);
         }
 
-        /// <summary>
-        /// Best-effort lookup of the active save file for callers that need it outside a
-        /// save/load event (e.g. an API called at an arbitrary time).
-        /// </summary>
+        /// <summary>Best-effort lookup of the active save file for callers that can't wait for the next event.</summary>
         public static string GetCurrentSaveFile()
         {
-            Type playerStoreType = ES3_Reflection_Handler.FindType("PlayerStore");
+            Type playerStoreType = Es3ReflectionHandler.FindType("PlayerStore");
             object instance = playerStoreType?.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static)?.GetValue(null);
             int? slot = instance != null ? GetSlotId(instance) : null;
             return slot.HasValue ? $"save_{slot.Value}.es3" : null;

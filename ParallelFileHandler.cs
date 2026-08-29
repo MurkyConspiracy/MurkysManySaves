@@ -6,18 +6,16 @@ using UnityEngine;
 namespace MurkysManySaves
 {
     /// <summary>
-    /// Stores arbitrary per-save data in a parallel ES3 file under a per-namespace MMS
-    /// subdirectory, keyed by a caller-chosen namespace and key. Never touches the player's
-    /// real save file.
-    /// Example: SaveValue("save_5.es3", "rusty", "isRustModeEnabled", true) writes
-    /// "MMS/rusty/save_5_rusty.es3".
+    /// Reads and writes values in a parallel ES3 file under a per-namespace MMS subfolder,
+    /// never touching the player's real save file.
+    /// Example: SaveValue("save_5.es3", "myfeature", "isEnabled", true) writes
+    /// "MMS/myfeature/save_5_myfeature.es3".
     /// </summary>
-    public static class Parallel_File_Handler
+    public static class ParallelFileHandler
     {
         private const string RootFolder = "MMS";
 
-        /// <summary>Ensures the top-level MMS folder exists. Called once on mod init so the
-        /// folder is present immediately rather than only appearing after the first save.</summary>
+        /// <summary>Creates the top-level MMS folder on mod init, so it exists before the first save.</summary>
         public static void EnsureRootFolder()
         {
             try
@@ -37,9 +35,9 @@ namespace MurkysManySaves
                 EnsureMigrated(saveFile, ns);
                 string path = BuildParallelPath(saveFile, ns);
                 System.IO.Directory.CreateDirectory(Path.Combine(Application.persistentDataPath, RootFolder, ns));
-                Type es3Type = ES3_Reflection_Handler.FindEs3Type();
+                Type es3Type = Es3ReflectionHandler.FindEs3Type();
                 MethodInfo save = es3Type != null
-                    ? ES3_Reflection_Handler.FindMethod(es3Type, "Save", typeof(string), typeof(object), typeof(string))
+                    ? Es3ReflectionHandler.FindMethod(es3Type, "Save", typeof(string), typeof(object), typeof(string))
                     : null;
 
                 if (save == null)
@@ -48,7 +46,7 @@ namespace MurkysManySaves
                     return;
                 }
 
-                ES3_Reflection_Handler.Invoke(save, null, key, value, path);
+                Es3ReflectionHandler.Invoke(save, null, key, value, path);
             }
             catch (Exception ex)
             {
@@ -62,15 +60,15 @@ namespace MurkysManySaves
             {
                 EnsureMigrated(saveFile, ns);
                 string path = BuildParallelPath(saveFile, ns);
-                Type es3Type = ES3_Reflection_Handler.FindEs3Type();
+                Type es3Type = Es3ReflectionHandler.FindEs3Type();
                 if (es3Type == null || !FileExists(saveFile, ns) || !KeyExists(saveFile, ns, key))
                     return defaultValue;
 
-                MethodInfo load = ES3_Reflection_Handler.FindMethod(es3Type, "Load", typeof(string), typeof(string), typeof(T));
+                MethodInfo load = Es3ReflectionHandler.FindMethod(es3Type, "Load", typeof(string), typeof(string), typeof(T));
                 if (load == null)
                     return defaultValue;
 
-                return (T)ES3_Reflection_Handler.Invoke(load, null, key, path, defaultValue);
+                return (T)Es3ReflectionHandler.Invoke(load, null, key, path, defaultValue);
             }
             catch (Exception ex)
             {
@@ -84,12 +82,12 @@ namespace MurkysManySaves
             try
             {
                 EnsureMigrated(saveFile, ns);
-                Type es3Type = ES3_Reflection_Handler.FindEs3Type();
-                MethodInfo method = es3Type != null ? ES3_Reflection_Handler.FindMethod(es3Type, "KeyExists", typeof(string), typeof(string)) : null;
+                Type es3Type = Es3ReflectionHandler.FindEs3Type();
+                MethodInfo method = es3Type != null ? Es3ReflectionHandler.FindMethod(es3Type, "KeyExists", typeof(string), typeof(string)) : null;
                 if (method == null)
                     return false;
 
-                return (bool)ES3_Reflection_Handler.Invoke(method, null, key, BuildParallelPath(saveFile, ns));
+                return (bool)Es3ReflectionHandler.Invoke(method, null, key, BuildParallelPath(saveFile, ns));
             }
             catch (Exception ex)
             {
@@ -103,12 +101,12 @@ namespace MurkysManySaves
             try
             {
                 EnsureMigrated(saveFile, ns);
-                Type es3Type = ES3_Reflection_Handler.FindEs3Type();
-                MethodInfo method = es3Type != null ? ES3_Reflection_Handler.FindMethod(es3Type, "FileExists", typeof(string)) : null;
+                Type es3Type = Es3ReflectionHandler.FindEs3Type();
+                MethodInfo method = es3Type != null ? Es3ReflectionHandler.FindMethod(es3Type, "FileExists", typeof(string)) : null;
                 if (method == null)
                     return false;
 
-                return (bool)ES3_Reflection_Handler.Invoke(method, null, BuildParallelPath(saveFile, ns));
+                return (bool)Es3ReflectionHandler.Invoke(method, null, BuildParallelPath(saveFile, ns));
             }
             catch (Exception ex)
             {
@@ -125,12 +123,12 @@ namespace MurkysManySaves
                 if (!FileExists(saveFile, ns))
                     return;
 
-                Type es3Type = ES3_Reflection_Handler.FindEs3Type();
-                MethodInfo method = es3Type != null ? ES3_Reflection_Handler.FindMethod(es3Type, "DeleteFile", typeof(string)) : null;
+                Type es3Type = Es3ReflectionHandler.FindEs3Type();
+                MethodInfo method = es3Type != null ? Es3ReflectionHandler.FindMethod(es3Type, "DeleteFile", typeof(string)) : null;
                 if (method == null)
                     return;
 
-                ES3_Reflection_Handler.Invoke(method, null, BuildParallelPath(saveFile, ns));
+                Es3ReflectionHandler.Invoke(method, null, BuildParallelPath(saveFile, ns));
             }
             catch (Exception ex)
             {
@@ -150,11 +148,7 @@ namespace MurkysManySaves
             return $"{RootFolder}/{ns}/{BuildLegacyPath(saveFile, ns)}";
         }
 
-        /// <summary>
-        /// Moves a pre-update flat parallel file (sitting next to the real save) into its new
-        /// MMS/{ns} subdirectory, if present. No-op once migrated, and no-op if there was never
-        /// a legacy file to begin with.
-        /// </summary>
+        /// <summary>Moves a pre-update flat parallel file into its new MMS/{ns} subfolder, if one exists. No-op otherwise.</summary>
         private static void EnsureMigrated(string saveFile, string ns)
         {
             try

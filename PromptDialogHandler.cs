@@ -8,7 +8,7 @@ using UnityEngine.UI;
 
 namespace MurkysManySaves
 {
-    /// <summary>Content and styling for a Prompt_Dialog_Handler.Show call. A plain data holder, not a service.</summary>
+    /// <summary>Content and styling for a PromptDialogHandler.Show call. A plain data holder, not a service.</summary>
     public class PromptDialogConfig
     {
         public string Title;
@@ -19,12 +19,12 @@ namespace MurkysManySaves
         public string[] ExistingPanelTypeNames = Array.Empty<string>();
 
         public Color OverlayColor = new Color(0f, 0f, 0f, 0.7f);
-        public Color PanelColor;
-        public Color AccentColor;
-        public Color TitleColor;
+        public Color PanelColor = new Color(0.2f, 0.2f, 0.2f, 0.98f);
+        public Color AccentColor = Color.cyan;
+        public Color TitleColor = Color.white;
         public Color BodyTextColor = new Color(0.95f, 0.95f, 0.90f, 1f);
-        public Color AcceptButtonColor;
-        public Color DeclineButtonColor;
+        public Color AcceptButtonColor = Color.green;
+        public Color DeclineButtonColor = Color.gray;
 
         public Action OnAccept;
         public Action OnDecline;
@@ -34,7 +34,7 @@ namespace MurkysManySaves
     /// Shows a modal opt-in dialog: tries an existing game confirm-panel type first, falls back
     /// to a custom Canvas built from the config, falls back further to a console-only message.
     /// </summary>
-    public static class Prompt_Dialog_Handler
+    public static class PromptDialogHandler
     {
         private static readonly string[] CommonPanelNames = {
             "ConfirmPanelUIManager", "ConfirmPanel", "DialogPanel",
@@ -68,6 +68,7 @@ namespace MurkysManySaves
             }
         }
 
+        /// <summary>Scans Assembly-CSharp for game panel types that look like a confirm/dialog UI.</summary>
         private static List<string> FindAvailablePanelTypes()
         {
             var results = new List<string>();
@@ -96,7 +97,7 @@ namespace MurkysManySaves
         {
             try
             {
-                Type panelType = ES3_Reflection_Handler.FindType(typeName);
+                Type panelType = Es3ReflectionHandler.FindType(typeName);
                 if (panelType == null)
                     return false;
 
@@ -293,7 +294,7 @@ namespace MurkysManySaves
         {
             try
             {
-                Type tooltipType = ES3_Reflection_Handler.FindType("TooltipUIManager");
+                Type tooltipType = Es3ReflectionHandler.FindType("TooltipUIManager");
                 object instance = tooltipType?.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static)?.GetValue(null);
                 MethodInfo showMethod = tooltipType?.GetMethod("Show", new[] { typeof(string) });
                 showMethod?.Invoke(instance, new object[] { message });
