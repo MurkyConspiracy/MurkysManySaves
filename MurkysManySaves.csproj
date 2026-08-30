@@ -37,6 +37,10 @@
     </Reference>
   </ItemGroup>
 
+  <Target Name="BumpModVersion" BeforeTargets="Build" Condition="'$(Configuration)' == 'Release'">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(ProjectDir)tools\bump-version.ps1&quot; -ManifestPath &quot;$(ProjectDir)manifest.xml&quot;" />
+  </Target>
+
   <Target Name="CopyDllAndManifest" AfterTargets="Build">
     <ItemGroup>
       <MainDll Include="$(TargetPath)" />
