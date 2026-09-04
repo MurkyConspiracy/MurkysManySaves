@@ -3,7 +3,7 @@
   <ID>murkysmanysaves</ID>
   <Name>Murky's Many Saves</Name>
   <Author>MurkyConspiracy</Author>
-  <ModVersion>1.1</ModVersion>
+  <ModVersion>1.2</ModVersion>
   <Description>Generic per-save-slot data storage and save-detection library for other mods.</Description>
   <GameVersions>
     <Version>047</Version>
