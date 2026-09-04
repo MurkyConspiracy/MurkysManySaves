@@ -28,6 +28,19 @@ SaveSlotHandler.LoadCompleted += (saveFile, slot) => { /* e.g. read a flag */ };
 string current = SaveSlotHandler.GetCurrentSaveFile(); // e.g. "save_5.es3", or null if no game is active
 ```
 
+`LoadStarting` is a third, earlier load event: it fires from `ModHook.OnGameLoadedInit`, which
+`PlayerStore.LoadGame` raises immediately after resolving the save slot but before applying any
+vanilla save data - and therefore before `ModHook.OnGameLoadedEarly`/`Normal`/`Late` too, all of
+which fire later in that same call, still before `LoadGame` returns and this mod's Harmony
+postfix (and thus `LoadCompleted`) ever runs. `PersistedStoreRegistry` uses `LoadStarting` for
+exactly this reason - so `PersistedValue<T>`/`PersistedItemData<T>` are already populated for any
+mod's `ModHook.OnGameLoaded*` handler. Use `LoadStarting` yourself only if you have the same
+requirement; otherwise prefer `LoadCompleted`, which better matches "the load has finished."
+
+```csharp
+SaveSlotHandler.LoadStarting += (saveFile, slot) => { /* e.g. read a value needed by OnGameLoadedEarly */ };
+```
+
 ## ParallelFileHandler
 
 Reads and writes arbitrary values in a parallel file under `MMS/{namespace}/`, named
@@ -48,10 +61,12 @@ ParallelFileHandler.DeleteFile("save_5.es3", "myfeature");
 `IPersistedStore` is a two-method interface (`Save(string saveFile)` / `Load(string saveFile)`).
 Register an instance with `PersistedStoreRegistry.Register(this)` and it saves/loads alongside
 every other registered store - across every mod that uses this library - off the single
-`SaveSlotHandler` subscription the registry owns internally. One store throwing is logged and
-skipped rather than breaking every other mod's store. Most callers won't implement this directly;
-it exists so `PersistedItemData<T>` (and anything else with its own save-worthy state) doesn't
-need its own `SaveSlotHandler` subscription.
+`SaveSlotHandler` subscription the registry owns internally. `Load` runs off `LoadStarting` (not
+`LoadCompleted`), so by the time any mod's `ModHook.OnGameLoadedInit`/`Early`/`Normal`/`Late`
+handler runs, every `PersistedValue<T>`/`PersistedItemData<T>` already has its loaded value - see
+`LoadStarting` above. One store throwing is logged and skipped rather than breaking every other
+mod's store. Most callers won't implement this directly; it exists so `PersistedItemData<T>` (and
+anything else with its own save-worthy state) doesn't need its own `SaveSlotHandler` subscription.
 
 ```csharp
 public class MyStore : IPersistedStore

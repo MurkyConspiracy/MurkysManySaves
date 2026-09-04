@@ -20,6 +20,18 @@ namespace MurkysManySaves
         /// <summary>Raised after a load completes, with the save file name and slot number.</summary>
         public static event Action<string, int> LoadCompleted;
 
+        /// <summary>
+        /// Raised as early as a save's slot can be known during a load - specifically from
+        /// ModHook.OnGameLoadedInit, which PlayerStore.LoadGame fires immediately after setting
+        /// saveSlotId but before it applies any vanilla save data, and therefore before
+        /// ModHook.OnGameLoadedEarly/Normal/Late (all fired later in that same call, all before
+        /// this mod's own Harmony postfix - and thus LoadCompleted - ever runs). PersistedStoreRegistry
+        /// uses this instead of LoadCompleted so any mod's ModHook.OnGameLoaded* handler can safely
+        /// read IPersistedStore data. Most callers should use LoadCompleted instead - this exists for
+        /// callers that specifically need to run before those ModHook hooks.
+        /// </summary>
+        public static event Action<string, int> LoadStarting;
+
         /// <summary>Patches PlayerStore's save/load methods. Safe to call more than once.</summary>
         public static void Initialize(Harmony harmony)
         {
@@ -35,6 +47,7 @@ namespace MurkysManySaves
 
             PatchMethod(harmony, playerStoreType, "SaveGame", "Save", nameof(SaveGamePostfix));
             PatchMethod(harmony, playerStoreType, "LoadGame", "Load", nameof(LoadGamePostfix));
+            ModHook.OnGameLoadedInit += RaiseLoadStarting;
             isPatched = true;
         }
 
@@ -78,10 +91,26 @@ namespace MurkysManySaves
         /// <summary>Best-effort lookup of the active save file for callers that can't wait for the next event.</summary>
         public static string GetCurrentSaveFile()
         {
+            int? slot = GetCurrentSlotId();
+            return slot.HasValue ? $"save_{slot.Value}.es3" : null;
+        }
+
+        /// <summary>
+        /// Fired by ModHook.OnGameLoadedInit - see LoadStarting's own doc for why this needs to be
+        /// this early rather than riding on the LoadGame Harmony postfix like LoadCompleted does.
+        /// </summary>
+        private static void RaiseLoadStarting()
+        {
+            int? slot = GetCurrentSlotId();
+            if (slot.HasValue)
+                LoadStarting?.Invoke($"save_{slot.Value}.es3", slot.Value);
+        }
+
+        private static int? GetCurrentSlotId()
+        {
             Type playerStoreType = Es3ReflectionHandler.FindType("PlayerStore");
             object instance = playerStoreType?.GetProperty("Instance", BindingFlags.Public | BindingFlags.Static)?.GetValue(null);
-            int? slot = instance != null ? GetSlotId(instance) : null;
-            return slot.HasValue ? $"save_{slot.Value}.es3" : null;
+            return instance != null ? GetSlotId(instance) : null;
         }
 
         private static int? GetSlotId(object playerStoreInstance)

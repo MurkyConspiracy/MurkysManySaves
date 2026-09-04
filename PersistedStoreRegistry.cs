@@ -9,6 +9,11 @@ namespace MurkysManySaves
     /// SaveSlotHandler once and runs every registered store's Save/Load together, so N mods
     /// don't each need their own subscription. A throwing store is logged and skipped rather
     /// than breaking everyone else's.
+    ///
+    /// Load runs off SaveSlotHandler.LoadStarting rather than LoadCompleted, so every store is
+    /// populated before any mod's ModHook.OnGameLoadedInit/Early/Normal/Late handler runs - see
+    /// LoadStarting's own doc for why LoadCompleted (tied to the LoadGame Harmony postfix) is too
+    /// late for that.
     /// </summary>
     public static class PersistedStoreRegistry
     {
@@ -34,7 +39,7 @@ namespace MurkysManySaves
             }
             isHooked = true;
             SaveSlotHandler.SaveCompleted += (saveFile, slot) => RunAll(store => store.Save(saveFile));
-            SaveSlotHandler.LoadCompleted += (saveFile, slot) => RunAll(store => store.Load(saveFile));
+            SaveSlotHandler.LoadStarting += (saveFile, slot) => RunAll(store => store.Load(saveFile));
         }
 
         private static void RunAll(Action<IPersistedStore> action)
